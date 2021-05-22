@@ -24,13 +24,6 @@ https://blog.puppyloper.com/menus/Golang/articles/Golang%EA%B3%BC%20Clean%20Arch
 vi .env
 
 PORT=:9000
-POSTGRES_HOST=onair-pg
-POSTGRES_DB=onair
-POSTGRES_USER=onair
-POSTGRES_PASSWORD=onair
-POSTGRES_PORT=5432
-POSTGRES_TZ=Asia/Seoul
-PGDATA=/var/lib/postgresql/data/db-files/
 MODE=debug
 ```
 

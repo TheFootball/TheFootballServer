@@ -1,5 +1,6 @@
 neulhan-commerce-server
 venv
+.env
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,pycharm,go
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,pycharm,go

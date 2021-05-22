@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"onair/src/config"
+	"onair/src/database"
+	"onair/src/module/history"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -46,6 +48,12 @@ func main() {
 	}))
 
 	log.Printf("[%s] START SERVER ON %s", os.Getenv("MODE"), config.GetEnv("PORT"))
+
+	db := database.GetDB()
+	historyGroup := app.Group("api/history")
+	history.InitModule(historyGroup, db)
+
+
 	//db := database.GetNewConnection(config.DSN, &gorm.Config{})
 	//bookRepository := repository.NewBookRepository(db)
 	//bookUseCase := usecase.NewBookUseCase(bookRepository)
