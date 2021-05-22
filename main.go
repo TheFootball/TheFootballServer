@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"log"
 	"onair/src/config"
 	"onair/src/database"
@@ -13,6 +14,7 @@ import (
 
 func main() {
 	app := fiber.New()
+	app.Use(cors.New())
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)

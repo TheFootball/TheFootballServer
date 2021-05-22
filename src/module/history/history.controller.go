@@ -11,7 +11,7 @@ type controller struct {
 func (c *controller) getAllHistory(ctx *fiber.Ctx) error {
 	res := c.service.getAllHistory()
 
-	return ctx.JSON(fiber.Map{"message": res})
+	return ctx.JSON(fiber.Map{"list": res})
 }
 
 func (c* controller) createGameHistory(ctx *fiber.Ctx) error {
