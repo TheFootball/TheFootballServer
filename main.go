@@ -2,6 +2,7 @@ package main
 
 import "C"
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -105,9 +106,17 @@ func runRoom(room Room) {
 			}
 			room.Clients[connection] = client
 			log.Println("connection registered")
+			clientByte, _ := json.Marshal(client)
+			if err := connection.WriteMessage(websocket.TextMessage, clientByte); err != nil {
+				log.Println("write error:", err)
+				connection.WriteMessage(websocket.CloseMessage, []byte{})
+				connection.Close()
+				delete(room.Clients, connection)
+			}
 
 		case message := <-room.Broadcast:
 			log.Println("message received:", message)
+
 			// Send the message to all clients
 			for connection := range room.Clients {
 				if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
@@ -184,7 +193,6 @@ func main() {
 
 		for {
 			messageType, message, err := c.ReadMessage()
-
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Println("read error:", err)
@@ -192,8 +200,14 @@ func main() {
 
 				return // Calls the deferred function, i.e. closes the connection on error
 			}
+
 			if messageType == websocket.TextMessage {
 				// Broadcast the received message
+				//event := Event{}
+				//err := json.Unmarshal(message, &event)
+				//if err != nil {
+				//	log.Fatal(err.Error())
+				//}
 				room.Broadcast <- string(message)
 			} else {
 				log.Println("websocket message received of type", messageType)
