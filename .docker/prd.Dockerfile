@@ -1,4 +1,4 @@
-FROM golang:1.13-alpine as builder
+FROM golang:1.16-alpine as builder
 
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
@@ -21,8 +21,6 @@ WORKDIR /dist
 RUN cp /build/main .
 
 FROM scratch
-
-ENV MODE=release
 
 COPY --from=builder /dist/main .
 

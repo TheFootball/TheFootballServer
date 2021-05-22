@@ -1,5 +1,6 @@
 package main
 
+import "C"
 import (
 	"log"
 	"onair/src/config"
@@ -9,56 +10,108 @@ import (
 	"github.com/gofiber/websocket/v2"
 )
 
+func getRandomCode() string {
+	return "ABC"
+}
+
+type client struct{} // Add more data to this type if needed
+
+var roomDB = map[string]Room{}
+
+type Room struct {
+	Clients    map[*websocket.Conn]client
+	Register   chan *websocket.Conn
+	Broadcast  chan string
+	Unregister chan *websocket.Conn
+}
+
+func NewRoom(code string) {
+	room := Room{}
+	room.Clients = make(map[*websocket.Conn]client) // Note: although large maps with pointer-like types (e.g. strings) as keys are slow, using pointers themselves as keys is acceptable and fast
+	room.Register = make(chan *websocket.Conn)
+	room.Broadcast = make(chan string)
+	room.Unregister = make(chan *websocket.Conn)
+	roomDB[code] = room
+}
+
+func runRoom(room Room) {
+	for {
+		select {
+		case connection := <-room.Register:
+			room.Clients[connection] = client{}
+			log.Println("connection registered")
+
+		case message := <-room.Broadcast:
+			log.Println("message received:", message)
+
+			// Send the message to all clients
+			for connection := range room.Clients {
+				if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+					log.Println("write error:", err)
+
+					connection.WriteMessage(websocket.CloseMessage, []byte{})
+					connection.Close()
+					delete(room.Clients, connection)
+				}
+			}
+
+		case connection := <-room.Unregister:
+			// Remove the client from the hub
+			delete(room.Clients, connection)
+			log.Println("connection unregistered")
+		}
+	}
+}
+
 func main() {
 	app := fiber.New()
-	app.Use("/ws", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			c.Locals("allowed", true)
+	app.Use("ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) { // Returns true if the client requested upgrade to the WebSocket protocol
 			return c.Next()
 		}
-		return fiber.ErrUpgradeRequired
+		return c.SendStatus(fiber.StatusUpgradeRequired)
 	})
-	app.Get("/ws/:id", websocket.New(func(c *websocket.Conn) {
-		// c.Locals is added to the *websocket.Conn
-		log.Println(c.Locals("allowed"))  // true
-		log.Println(c.Params("id"))       // 123
-		log.Println(c.Query("v"))         // 1.0
-		log.Println(c.Cookies("session")) // ""
 
-		// websocket.Conn bindings https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
-		var (
-			mt  int
-			msg []byte
-			err error
-		)
+	app.Get("/create/", func(ctx *fiber.Ctx) error {
+		code := getRandomCode()
+		NewRoom(code)
+		go runRoom(roomDB[code])
+		return ctx.JSON(fiber.Map{
+			"code": code,
+		})
+	})
+
+	app.Get("/ws/:code/join", websocket.New(func(c *websocket.Conn) {
+		// When the function returns, unregister the client and close the connection
+		room := roomDB[c.Params("code")]
+		defer func() {
+			room.Unregister <- c
+			c.Close()
+		}()
+
+		// Register the client
+		room.Register <- c
+
 		for {
-			if mt, msg, err = c.ReadMessage(); err != nil {
-				log.Println("read:", err)
-				break
-			}
-			log.Printf("recv: %s", msg)
+			messageType, message, err := c.ReadMessage()
 
-			if err = c.WriteMessage(mt, msg); err != nil {
-				log.Println("write:", err)
-				break
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Println("read error:", err)
+				}
+
+				return // Calls the deferred function, i.e. closes the connection on error
+			}
+			if messageType == websocket.TextMessage {
+				// Broadcast the received message
+				room.Broadcast <- string(message)
+			} else {
+				log.Println("websocket message received of type", messageType)
 			}
 		}
 	}))
 
 	log.Printf("[%s] START SERVER ON %s", os.Getenv("MODE"), config.GetEnv("PORT"))
-	//db := database.GetNewConnection(config.DSN, &gorm.Config{})
-	//bookRepository := repository.NewBookRepository(db)
-	//bookUseCase := usecase.NewBookUseCase(bookRepository)
-	//bookHandler := handler.NewBookHandler(bookUseCase)
-	//
-	//bookRouter := app.Group("books")
-	//{
-	//	bookRouter.Get("", bookHandler.GetAllBooks)
-	//	bookRouter.Get("/:id", bookHandler.GetBook)
-	//	bookRouter.Post("", bookHandler.CreateBook)
-	//	bookRouter.Post("/:id", bookHandler.UpdateBook)
-	//	bookRouter.Delete("/:id", bookHandler.DeleteBook)
-	//}
 
 	log.Fatal(app.Listen(config.GetEnv("PORT")))
 }

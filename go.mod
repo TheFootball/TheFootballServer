@@ -11,6 +11,7 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/savsgio/gotils v0.0.0-20210520110740-c57c45b83e0a // indirect
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/valyala/fasthttp v1.25.0 // indirect
 	golang.org/x/sys v0.0.0-20210521203332-0cec03c779c1 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
