@@ -10,10 +10,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
+	"github.com/google/uuid"
 )
 
 func getRandomCode() string {
-	return "ABC"
+	code := uuid.NewString()
+	return code
 }
 
 type client struct{} // Add more data to this type if needed
