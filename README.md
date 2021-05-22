@@ -21,7 +21,7 @@ https://blog.puppyloper.com/menus/Golang/articles/Golang%EA%B3%BC%20Clean%20Arch
 
 ## Run Project Development
 ```bash
-vi .env/dev.env
+vi .env
 
 PORT=:9000
 POSTGRES_HOST=onair-pg
@@ -31,7 +31,6 @@ POSTGRES_PASSWORD=onair
 POSTGRES_PORT=5432
 POSTGRES_TZ=Asia/Seoul
 PGDATA=/var/lib/postgresql/data/db-files/
-SECRET_KEY=a-o{<%MyF.apGy'<LB-SZ^jK!3N{ni
 MODE=debug
 ```
 

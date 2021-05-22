@@ -1,20 +1,13 @@
 package config
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"strings"
 
 	"github.com/spf13/viper"
 )
 
 func GetEnv(key string) string {
-	if os.Getenv("MODE") == "release" {
-		viper.SetConfigFile(".env/prd.env")
-	} else {
-		viper.SetConfigFile(".env/dev.env")
-	}
+	viper.SetConfigFile(".env")
 	err := viper.ReadInConfig()
 
 	if err != nil {
@@ -30,14 +23,14 @@ func GetEnv(key string) string {
 	return value
 }
 
-var dsnConfigs = []string{
-	fmt.Sprintf("host=%s", GetEnv("POSTGRES_HOST")),
-	fmt.Sprintf("user=%s", GetEnv("POSTGRES_USER")),
-	fmt.Sprintf("database=%s", GetEnv("POSTGRES_DB")),
-	fmt.Sprintf("password=%s", GetEnv("POSTGRES_PASSWORD")),
-	fmt.Sprintf("port=%s", GetEnv("POSTGRES_PORT")),
-	"sslmode=disable",
-	fmt.Sprintf("TimeZone=%s", GetEnv("POSTGRES_TZ")),
-}
+//var dsnConfigs = []string{
+//	fmt.Sprintf("host=%s", GetEnv("POSTGRES_HOST")),
+//	fmt.Sprintf("user=%s", GetEnv("POSTGRES_USER")),
+//	fmt.Sprintf("database=%s", GetEnv("POSTGRES_DB")),
+//	fmt.Sprintf("password=%s", GetEnv("POSTGRES_PASSWORD")),
+//	fmt.Sprintf("port=%s", GetEnv("POSTGRES_PORT")),
+//	"sslmode=disable",
+//	fmt.Sprintf("TimeZone=%s", GetEnv("POSTGRES_TZ")),
+//}
 
-var DSN string = strings.Join(dsnConfigs, " ")
+//var DSN string = strings.Join(dsnConfigs, " ")

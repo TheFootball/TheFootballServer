@@ -8,9 +8,9 @@ ENV GO111MODULE=on \
 
 WORKDIR /build
 
-COPY ../go.mod go.sum main.go ./
+COPY ./go.mod go.sum main.go ./
 
-COPY ../src ./src
+COPY ./src ./src
 
 RUN go mod download
 
@@ -26,8 +26,8 @@ ENV MODE=release
 
 COPY --from=builder /dist/main .
 
-COPY prd.env .
+COPY .env .
 
-EXPOSE 9091
+EXPOSE 9000
 
 ENTRYPOINT ["/main"]
