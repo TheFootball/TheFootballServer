@@ -2,8 +2,11 @@ package main
 
 import "C"
 import (
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/websocket/v2"
+	"github.com/google/uuid"
 	"log"
 	"math/rand"
 	"onair/src/config"
@@ -11,12 +14,6 @@ import (
 	"onair/src/module/history"
 	"onair/src/utils"
 	"os"
-
-	"github.com/gofiber/fiber/v2/middleware/cors"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/websocket/v2"
-	"github.com/google/uuid"
 )
 
 func GetRandomCode() string {
