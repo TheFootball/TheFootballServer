@@ -13,25 +13,68 @@ import (
 	"github.com/google/uuid"
 )
 
-func getRandomCode() string {
+func GetRandomCode() string {
 	code := uuid.NewString()
 	return code
 }
 
-type client struct{} // Add more data to this type if needed
+type Client struct {
+	Id         int
+	Name       string
+	IsPlayed   bool
+	AnimalType int
+	SkillUsed  bool
+} // Add more data to this type if needed
 
 var roomDB = map[string]Room{}
 
+type Chat struct {
+	Message   string
+	Client    Client
+	CreatedAt string
+}
+
+type Movement struct {
+	IsLeft bool
+}
+
+// 유저이동
+// 	이동 방향 (홍두)
+
+// 탄막스킬
+// 탄막 유저 번호 (홍두)
+
+// 탄막생성
+// 좌표, 탄막 종류, 탄막 유저 번호 (한결)
+
+// 탄막이동
+// 탄막 이동 방향, 탄막 유저 번호 (홍두)
+
+// 방에 더 못들어오게하는거 (홍두)
+
+// 유저 정보 받기 (한결)
+
+// 방 정보 받기 (한결)
+
+// 더미 실행코드 (홍두)
+
+// 배포 (한결)
+
 type Room struct {
-	Clients    map[*websocket.Conn]client
+	Code       string
+	Host       Client
+	Clients    map[*websocket.Conn]Client
 	Register   chan *websocket.Conn
 	Broadcast  chan string
 	Unregister chan *websocket.Conn
+	MaxClients int
+	Difficulty int
+	IsStart    bool
 }
 
 func NewRoom(code string) {
 	room := Room{}
-	room.Clients = make(map[*websocket.Conn]client) // Note: although large maps with pointer-like types (e.g. strings) as keys are slow, using pointers themselves as keys is acceptable and fast
+	room.Clients = make(map[*websocket.Conn]Client) // Note: although large maps with pointer-like types (e.g. strings) as keys are slow, using pointers themselves as keys is acceptable and fast
 	room.Register = make(chan *websocket.Conn)
 	room.Broadcast = make(chan string)
 	room.Unregister = make(chan *websocket.Conn)
@@ -42,7 +85,7 @@ func runRoom(room Room) {
 	for {
 		select {
 		case connection := <-room.Register:
-			room.Clients[connection] = client{}
+			room.Clients[connection] = Client{}
 			log.Println("connection registered")
 
 		case message := <-room.Broadcast:
@@ -60,7 +103,7 @@ func runRoom(room Room) {
 			}
 
 		case connection := <-room.Unregister:
-			// Remove the client from the hub
+			// Remove the Client from the hub
 			delete(room.Clients, connection)
 			log.Println("connection unregistered")
 		}
@@ -70,14 +113,14 @@ func runRoom(room Room) {
 func main() {
 	app := fiber.New()
 	app.Use("ws", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) { // Returns true if the client requested upgrade to the WebSocket protocol
+		if websocket.IsWebSocketUpgrade(c) { // Returns true if the Client requested upgrade to the WebSocket protocol
 			return c.Next()
 		}
 		return c.SendStatus(fiber.StatusUpgradeRequired)
 	})
 
 	app.Get("/create/", func(ctx *fiber.Ctx) error {
-		code := getRandomCode()
+		code := GetRandomCode()
 		NewRoom(code)
 		go runRoom(roomDB[code])
 		return ctx.JSON(fiber.Map{
@@ -86,14 +129,14 @@ func main() {
 	})
 
 	app.Get("/ws/:code/join", websocket.New(func(c *websocket.Conn) {
-		// When the function returns, unregister the client and close the connection
+		// When the function returns, unregister the Client and close the connection
 		room := roomDB[c.Params("code")]
 		defer func() {
 			room.Unregister <- c
 			c.Close()
 		}()
 
-		// Register the client
+		// Register the Client
 		room.Register <- c
 
 		for {
