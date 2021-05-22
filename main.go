@@ -2,11 +2,16 @@ package main
 
 import "C"
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"onair/src/config"
 	"onair/src/database"
 	"onair/src/module/history"
+	"onair/src/utils"
 	"os"
+
+	"github.com/gofiber/fiber/v2/middleware/cors"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -17,6 +22,9 @@ func GetRandomCode() string {
 	code := uuid.NewString()
 	return code
 }
+
+var animals = []string{"고양이", "독수리", "고슴도치", "마모트"}
+var lastId = 0
 
 type Client struct {
 	Id         int
@@ -64,7 +72,7 @@ type Movement struct {
 
 type Room struct {
 	Code       string
-	Host       Client
+	Host       *Client
 	Clients    map[*websocket.Conn]Client
 	Register   chan *websocket.Conn
 	Broadcast  chan string
@@ -74,25 +82,34 @@ type Room struct {
 	IsStart    bool
 }
 
-func NewRoom(code string) {
-	room := Room{}
+func NewRoom(room Room) {
 	room.Clients = make(map[*websocket.Conn]Client) // Note: although large maps with pointer-like types (e.g. strings) as keys are slow, using pointers themselves as keys is acceptable and fast
 	room.Register = make(chan *websocket.Conn)
 	room.Broadcast = make(chan string)
 	room.Unregister = make(chan *websocket.Conn)
-	roomDB[code] = room
+	roomDB[room.Code] = room
 }
 
 func runRoom(room Room) {
 	for {
 		select {
 		case connection := <-room.Register:
-			room.Clients[connection] = Client{}
+			lastId += 1
+			client := Client{
+				lastId,
+				fmt.Sprintf("%v", connection.Params("name")),
+				false,
+				rand.Intn(len(animals)),
+				false,
+			}
+			if len(room.Clients) == 0 {
+				room.Host = &client
+			}
+			room.Clients[connection] = client
 			log.Println("connection registered")
 
 		case message := <-room.Broadcast:
 			log.Println("message received:", message)
-
 			// Send the message to all clients
 			for connection := range room.Clients {
 				if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
@@ -114,6 +131,9 @@ func runRoom(room Room) {
 
 func main() {
 	app := fiber.New()
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+	}))
 	app.Use("ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) { // Returns true if the Client requested upgrade to the WebSocket protocol
 			return c.Next()
@@ -121,16 +141,35 @@ func main() {
 		return c.SendStatus(fiber.StatusUpgradeRequired)
 	})
 
-	app.Get("/create/", func(ctx *fiber.Ctx) error {
+	app.Post("/api/create/room", func(ctx *fiber.Ctx) error {
 		code := GetRandomCode()
-		NewRoom(code)
+		type roomBody struct {
+			MaxClients int `json:"maxClients" validate:"min=50,max=100"`
+			Difficulty int `json:"difficulty" validate:"min=1,max=3"`
+		}
+		roomInput := new(roomBody)
+		if err := ctx.BodyParser(roomInput); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		errs := utils.Validate(roomInput)
+		if len(errs) > 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "validation error")
+		}
+		room := Room{
+			Code:       code,
+			MaxClients: roomInput.MaxClients,
+			Difficulty: roomInput.Difficulty,
+		}
+		NewRoom(room)
 		go runRoom(roomDB[code])
 		return ctx.JSON(fiber.Map{
-			"code": code,
+			"code":       code,
+			"maxClients": roomInput.MaxClients,
+			"difficulty": roomInput.Difficulty,
 		})
 	})
 
-	app.Get("/ws/:code/join", websocket.New(func(c *websocket.Conn) {
+	app.Get("/ws/:code/join/:name", websocket.New(func(c *websocket.Conn) {
 		// When the function returns, unregister the Client and close the connection
 		room := roomDB[c.Params("code")]
 		defer func() {

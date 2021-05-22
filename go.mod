@@ -9,6 +9,7 @@ require (
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/gofiber/fiber/v2 v2.10.0
 	github.com/gofiber/websocket/v2 v2.0.3
+	github.com/google/uuid v1.2.0 // indirect
 	github.com/guregu/dynamo v1.10.4
 	github.com/labstack/gommon v0.3.0
 	github.com/leodido/go-urn v1.2.1 // indirect
