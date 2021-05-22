@@ -10,3 +10,9 @@ services:
       - "9000:9000"
     volumes:
       - ./:/app
+    depends_on:
+      - cachedb
+  cachedb:
+    image: redis:latest
+    container_name: cachedb
+    hostname: cachedb

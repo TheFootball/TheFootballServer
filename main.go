@@ -6,19 +6,42 @@ import (
 	"onair/src/config"
 	"onair/src/database"
 	"onair/src/module/history"
+
 	"os"
 
+	"github.com/go-redis/redis"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 )
 
 func getRandomCode() string {
+	// TODO: uuid4
 	return "ABC"
+}
+
+func (room *Room) publishRoomMessage(message []byte, code string, cache *redis.Client) {
+	err := cache.Publish(code, message).Err()
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (room *Room) subscribeToRoomMessages(code string, cache *redis.Client) {
+	pubsub := cache.Subscribe(code)
+
+	ch := pubsub.Channel()
+
+	for msg := range ch {
+		room.broadcastToClientsInRoom([]byte(msg.Payload))
+	}
 }
 
 type client struct{} // Add more data to this type if needed
 
 var roomDB = map[string]Room{}
+
+// TODO: redis달아야함
 
 type Room struct {
 	Clients    map[*websocket.Conn]client
@@ -27,13 +50,15 @@ type Room struct {
 	Unregister chan *websocket.Conn
 }
 
-func NewRoom(code string) {
+func NewRoom(code string, cache *redis.Client) Room {
 	room := Room{}
 	room.Clients = make(map[*websocket.Conn]client) // Note: although large maps with pointer-like types (e.g. strings) as keys are slow, using pointers themselves as keys is acceptable and fast
 	room.Register = make(chan *websocket.Conn)
 	room.Broadcast = make(chan string)
 	room.Unregister = make(chan *websocket.Conn)
-	roomDB[code] = room
+	// roomDB[code] = room
+	cache.Set(code, room, 99999)
+	return room
 }
 
 func runRoom(room Room) {
@@ -65,7 +90,10 @@ func runRoom(room Room) {
 	}
 }
 
+var cache *redis.Client
+
 func main() {
+	cache = database.GetCacheClient()
 	app := fiber.New()
 	app.Use("ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) { // Returns true if the client requested upgrade to the WebSocket protocol
@@ -76,8 +104,8 @@ func main() {
 
 	app.Get("/create/", func(ctx *fiber.Ctx) error {
 		code := getRandomCode()
-		NewRoom(code)
-		go runRoom(roomDB[code])
+		room := NewRoom(code, cache)
+		go runRoom(room)
 		return ctx.JSON(fiber.Map{
 			"code": code,
 		})
@@ -85,7 +113,9 @@ func main() {
 
 	app.Get("/ws/:code/join", websocket.New(func(c *websocket.Conn) {
 		// When the function returns, unregister the client and close the connection
-		room := roomDB[c.Params("code")]
+		// room := roomDB[c.Params("code")]
+		code := c.Params("code")
+		room := cache.Get(code)
 		defer func() {
 			room.Unregister <- c
 			c.Close()
