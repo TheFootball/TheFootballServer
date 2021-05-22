@@ -38,6 +38,8 @@ type Movement struct {
 	IsLeft bool
 }
 
+// 채팅 개발 (한결)
+
 // 유저이동
 // 	이동 방향 (홍두)
 
