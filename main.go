@@ -60,7 +60,7 @@ type Movement struct {
 // 탄막이동
 // 탄막 이동 방향, 탄막 유저 번호 (홍두)
 
-// 방에 더 못들어오게하는거 (홍두)
+// 방에 더 못들어오게하는거 (홍두) V
 
 // 유저 정보 받기 (한결)
 
@@ -179,6 +179,10 @@ func main() {
 
 		// Register the Client
 		room.Register <- c
+
+		if len(room.Clients) >= room.MaxClients {
+			return
+		}
 
 		for {
 			messageType, message, err := c.ReadMessage()
